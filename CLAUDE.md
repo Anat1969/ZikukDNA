@@ -9,7 +9,7 @@
   - פונקציית Edge `zikuk-distill` (מקור ב-`supabase/functions/zikuk-distill`): Claude לטקסט, fal.ai לתמונה, כתיבה עם service role, מגבלה של 20 זיקוקים בשעה. פתוחה לכל מבקר.
   - Google כבוי בפרויקט כרגע, ולכן חלון הכניסה מציע קישור חד־פעמי למייל. כשיופעל Google, הכפתור יופיע לבד.
 - PWA: `public/manifest.webmanifest`, `public/sw.js`, אייקונים ב-`public/icons` (נוצרו מ-`public/favicon.svg`).
-- פריסה: Vercel מ-main. `vercel.json` מפנה כל נתיב ל-index.html.
+- פריסה: פרויקט Vercel `zikuk-dna`, ענף הייצור main, כתובת https://zikuk-dna.vercel.app. `vercel.json` מפנה כל נתיב ל-index.html.
 
 ## בדיקה
 `npm run build && npm test`: Playwright מול `vite preview` עם מוקים לכל Supabase, סשן אדמין מזויף, בדיקת גלילה אופקית בנייד, התקנה ושגיאות קונסול. צילומי מסך ב-`tests/shots`.
