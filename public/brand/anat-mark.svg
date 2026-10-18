@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Anat Stiebelman">
+  <!-- Vector redraw of Anat Stiebelman's mark: a stone "A" with a beam crossbar on a drafting tile. -->
+  <defs>
+    <linearGradient id="am-tile" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f1f0ee"/><stop offset="1" stop-color="#d9d8d5"/></linearGradient>
+    <linearGradient id="am-stone" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8c8a86"/><stop offset=".55" stop-color="#5c5a57"/><stop offset="1" stop-color="#3b3a38"/></linearGradient>
+    <linearGradient id="am-beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f2e2c"/><stop offset="1" stop-color="#151514"/></linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="3" fill="url(#am-tile)"/>
+  <g stroke="#9c9b98" stroke-width=".4" opacity=".7" fill="none">
+    <rect x="7" y="8" width="46" height="42"/><line x1="4" y1="14" x2="60" y2="14"/><line x1="44" y1="4" x2="44" y2="60"/><line x1="52" y1="20" x2="52" y2="56"/><rect x="40" y="20" width="16" height="20"/>
+  </g>
+  <path d="M32 7 L57 57 L45 57 L32 30 L19 57 L7 57 Z" fill="url(#am-stone)"/>
+  <path d="M32 7 L57 57 L53 57 L32 15 Z" fill="#000" opacity=".18"/>
+  <path d="M9 40 L55 40 L52 47 L12 47 Z" fill="url(#am-beam)"/>
+  <circle cx="32" cy="43.5" r="1.6" fill="#e9e7e2"/>
+</svg>
