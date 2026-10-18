@@ -7,6 +7,8 @@
 - Supabase: פרויקט משותף `cultura-GH` (ktqmwpbzcnzkhjskqisy). רק טבלאות `zikuk_*` והדלי `zikuk-media`.
   - `zikuk_dnas`: קריאה ציבורית למה שפורסם, עדכון ומחיקה לאדמין בלבד (`zikuk_is_admin()` לפי מייל בטבלת `zikuk_admins`).
   - פונקציית Edge `zikuk-distill` (מקור ב-`supabase/functions/zikuk-distill`): Claude לטקסט, fal.ai לתמונה, כתיבה עם service role, מגבלה של 20 זיקוקים בשעה. פתוחה לכל מבקר.
+  - פונקציית Edge `zikuk-upload` (מקור ב-`supabase/functions/zikuk-upload`): מצרפת לגנום את התמונה שנוצרה במידג'רני (`mj_image_url`). כל מבקר יכול להוסיף תמונה ראשונה, החלפה והסרה רק לאדמין (טוקן המשתמש נשלח ב-`x-user-token`). מגבלה של 30 העלאות בשעה, עד 10MB.
+  - התמונה שמייצגת גנום היא `mainImage()`: תמונת מידג'רני אם יש, אחרת התמונה שנוצרה. משמשת בכרטיסים, בגנום המוביל, במעבדה ובראש דף הגנום.
   - Google כבוי בפרויקט כרגע, ולכן חלון הכניסה מציע קישור חד־פעמי למייל. כשיופעל Google, הכפתור יופיע לבד.
 - PWA: `public/manifest.webmanifest`, `public/sw.js`, אייקונים ב-`public/icons` (נוצרו מ-`public/favicon.svg`).
 - פריסה: פרויקט Vercel `zikuk-dna`, ענף הייצור main, כתובת https://zikuk-dna.vercel.app. `vercel.json` מפנה כל נתיב ל-index.html.
@@ -19,3 +21,4 @@
 - בלי אייקונים. סרגל עליון קבוע: שם האפליקציה לדף הבית, העתקת קישור, שיחת הפיתוח, התקנה.
 - פרומפט מידג'רני בעברית בלבד, ותמיד מסתיים ב-`Documentary realism, Professional architecture photography, 1:1 --no text, words, writing, frame divisions` (מתווסף בשרת).
 - פרויקט Supabase הישן ZIKUK היה ריק (בלי טבלאות, פונקציות או משתמשים) ואפשר למחוק אותו.
+- בדף הגנום: אזור "מהפרומפט לתמונה" שבו מעלים את התמונה ממידג'רני בגרירה, בהדבקה (Ctrl+V) או בבחירת קובץ. התמונה מוצגת עם הטקסט של הגנום, ואפשר להוריד כרטיס 1080x1350 של תמונה וטקסט.

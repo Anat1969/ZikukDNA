@@ -250,3 +250,36 @@ main, .footer { position: relative; z-index: 1; min-width: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
 }
+
+/* midjourney studio */
+.card-mj { position: absolute; z-index: 1; bottom: 12px; inset-inline-end: 12px; font-size: 12px; letter-spacing: .1em; padding: 5px 10px; border-radius: 999px; background: rgba(227,194,111,.18); color: #f1d9a6; border: 1px solid rgba(227,194,111,.4); backdrop-filter: blur(8px); }
+.studio { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 36px; align-items: start; }
+.studio-head { display: grid; gap: 14px; position: sticky; top: calc(var(--top) + 24px); }
+.studio-head .h2 { margin-bottom: 0; }
+.studio-steps { margin: 0; padding-inline-start: 22px; color: #c9cdd2; display: grid; gap: 4px; }
+.studio-steps li::marker { font-family: var(--mono); color: var(--muted); }
+.studio-auto { display: flex; align-items: center; gap: 12px; }
+.studio-auto img { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; box-shadow: var(--shadow); opacity: .85; }
+.mj { display: grid; gap: 14px; perspective: 1200px; min-width: 0; }
+.mj-drop { position: relative; display: grid; place-items: center; align-content: center; gap: 10px; text-align: center; aspect-ratio: 1 / 1; padding: 30px; border-radius: 26px; cursor: pointer; overflow: hidden; isolation: isolate;
+  background: radial-gradient(ellipse at 50% 30%, rgba(60,66,74,.55), rgba(18,20,23,.85) 70%); border: 1px solid var(--line); box-shadow: var(--shadow), inset 0 2px 20px rgba(0,0,0,.4); transition: border-color .25s, box-shadow .25s; }
+.mj-drop b { font-size: clamp(22px, 2.6vw, 30px); font-weight: 200; }
+.mj-drop .muted { max-width: 340px; font-size: 15px; }
+.mj-drop:hover, .mj-drop:focus-within { border-color: var(--line-strong); }
+.mj-drop.over { border-color: #e3c26f; box-shadow: 0 0 0 2px rgba(227,194,111,.5), 0 30px 80px -30px rgba(227,194,111,.5); }
+.mj-drop-frame { position: absolute; inset: 22px; border: 1.5px dashed rgba(233,229,222,.25); border-radius: 18px; z-index: -1; transition: inset .3s, border-color .3s; }
+.mj-drop.over .mj-drop-frame { inset: 12px; border-color: rgba(227,194,111,.8); }
+.mj-drop.busy { cursor: progress; }
+.mj-drop.busy .mj-drop-frame { animation: frame-pulse 1.2s ease-in-out infinite; }
+@keyframes frame-pulse { 50% { inset: 14px; border-color: rgba(233,229,222,.6); } }
+.mj-drop-preview { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; opacity: .35; filter: blur(2px); }
+.mj-plate { margin: 0; border-radius: 26px; overflow: hidden; background: linear-gradient(180deg, #1c1f23, #121417); border: 1px solid var(--line); box-shadow: var(--shadow-lift); }
+.mj-plate-img { position: relative; }
+.mj-plate-img img { width: 100%; height: auto; display: block; }
+.mj-plate .gene-strip { height: 6px; }
+.mj-plate figcaption { padding: 22px 26px 26px; display: grid; gap: 6px; }
+.mj-plate h3 { margin: 0; font-size: clamp(28px, 3vw, 40px); font-weight: 200; line-height: 1.1; }
+.mj-distill { margin: 0; font-size: 19px; color: #e4e1db; }
+.mj-plate .muted { margin: 0; }
+.mj-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 900px) { .studio { grid-template-columns: minmax(0, 1fr); } .studio-head { position: static; } }

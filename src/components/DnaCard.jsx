@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Link } from '../lib/router.jsx'
-import { geneList, dnaCode, KIND_LABEL } from '../lib/genes.js'
+import { geneList, dnaCode, KIND_LABEL, mainImage } from '../lib/genes.js'
 
 export function GeneStrip({ dna, height = 6 }) {
   return (
@@ -16,11 +16,12 @@ export default function DnaCard({ dna, index = 0, selectable, selected, onSelect
   const body = (
     <>
       <div className="card-media">
-        {dna.image_url
-          ? <img src={dna.image_url} alt={dna.title} loading="lazy" />
+        {mainImage(dna)
+          ? <img src={mainImage(dna)} alt={dna.title} loading="lazy" />
           : <div className="card-media-fallback" style={{ background: `linear-gradient(135deg, ${(dna.palette ?? ['#2a2e33', '#5d646c']).join(', ')})` }} />}
         <span className="card-code mono">{dnaCode(dna.id)}</span>
         {dna.kind !== 'distill' && <span className="card-kind mono">{KIND_LABEL[dna.kind]}</span>}
+        {dna.mj_image_url && <span className="card-mj mono">מידג'רני</span>}
         {selectable && <span className={`card-select mono ${selected ? 'on' : ''}`}>{selected ? `נבחר ${selected}` : 'בחירה'}</span>}
       </div>
       <GeneStrip dna={dna} />
