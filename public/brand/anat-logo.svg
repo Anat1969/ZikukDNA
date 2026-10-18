@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 72" role="img" aria-label="אד' ענת שטיבלמן">
+  <!-- Full logo: mark on the right, name to its left, as in the original. -->
+  <image href="anat-mark.svg" x="232" y="4" width="64" height="64"/>
+  <text x="222" y="56" direction="rtl" text-anchor="start" font-family="IBM Plex Sans Hebrew, Arial, sans-serif" font-size="24" font-weight="600" fill="#1d1d1c">אד' ענת שטיבלמן  |  &amp;</text>
+</svg>
