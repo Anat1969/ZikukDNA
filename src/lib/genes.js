@@ -29,3 +29,6 @@ export function blendGenes(a, b) {
 export const dnaCode = (id = '') => `ZK-${id.replace(/-/g, '').slice(0, 4).toUpperCase()}`
 
 export const dominant = (dna) => [...geneList(dna)].sort((x, y) => y.intensity - x.intensity)[0]
+
+// The image that represents a genome: the user's Midjourney image when there is one.
+export const mainImage = (dna) => dna?.mj_image_url || dna?.image_url || null

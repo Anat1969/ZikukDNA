@@ -3,7 +3,7 @@ import { motion, useScroll, useTransform } from 'framer-motion'
 import Helix from '../components/Helix.jsx'
 import DnaCard from '../components/DnaCard.jsx'
 import { Link, useRoute, setQuery } from '../lib/router.jsx'
-import { GENES, LENSES, geneList } from '../lib/genes.js'
+import { GENES, LENSES, geneList, mainImage } from '../lib/genes.js'
 import { useStore } from '../store.jsx'
 
 const STEPS = [
@@ -44,7 +44,7 @@ export default function Home() {
   }), [dnas])
 
   const filtered = dnas.filter((d) => (!lens || d.lens === lens) && (!q || `${d.title} ${d.distillation} ${d.source_input ?? ''}`.includes(q)))
-  const featured = dnas.find((d) => d.featured && d.image_url) ?? dnas.find((d) => d.image_url)
+  const featured = dnas.find((d) => d.featured && mainImage(d)) ?? dnas.find((d) => d.mj_image_url) ?? dnas.find((d) => mainImage(d))
   const counts = { all: dnas.length, hybrid: dnas.filter((d) => d.kind === 'hybrid').length, mutation: dnas.filter((d) => d.kind === 'mutation').length }
 
   return (
@@ -93,7 +93,7 @@ export default function Home() {
       {featured && (
         <section className="page">
           <Link to={`/dna/${featured.id}`} className="featured" data-testid="featured">
-            <motion.img src={featured.image_url} alt={featured.title} initial={{ scale: 1.12 }} whileInView={{ scale: 1 }} viewport={{ once: true }} transition={{ duration: 1.6, ease: [0.2, 0.7, 0.2, 1] }} />
+            <motion.img src={mainImage(featured)} alt={featured.title} initial={{ scale: 1.12 }} whileInView={{ scale: 1 }} viewport={{ once: true }} transition={{ duration: 1.6, ease: [0.2, 0.7, 0.2, 1] }} />
             <div className="featured-copy">
               <span className="mono-label">גנום מוביל / {featured.lens}</span>
               <h2>{featured.title}</h2>

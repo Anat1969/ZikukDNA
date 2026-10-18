@@ -30,7 +30,7 @@ async function setup(ctx, { admin }) {
     state.calls.push({ m, path: url.pathname + url.search, body: req.postData() })
     const json = (b, s = 200) => route.fulfill({ status: s, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(b) })
     if (m === 'OPTIONS') return route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } })
-    if (url.pathname.startsWith('/storage/')) return route.fulfill({ status: 200, contentType: 'image/png', body: PNG })
+    if (url.pathname.startsWith('/storage/')) return route.fulfill({ status: 200, contentType: 'image/png', headers: { 'access-control-allow-origin': '*' }, body: PNG })
     if (url.pathname === '/auth/v1/settings') return json({ external: { google: false, email: true } })
     if (url.pathname === '/auth/v1/otp') return json({})
     if (url.pathname === '/auth/v1/logout') return route.fulfill({ status: 204 })
@@ -40,6 +40,16 @@ async function setup(ctx, { admin }) {
       if (m === 'GET') return json(state.dnas)
       if (m === 'PATCH') { const d = state.dnas.find((x) => x.id === id); Object.assign(d, JSON.parse(req.postData())); return json(d) }
       if (m === 'DELETE') { state.dnas = state.dnas.filter((x) => x.id !== id); return route.fulfill({ status: 204 }) }
+    }
+    if (url.pathname === '/functions/v1/zikuk-upload') {
+      const body = req.postDataBuffer()?.toString('latin1') ?? ''
+      const id = /name="dnaId"\r\n\r\n([0-9a-f-]{36})/.exec(body)?.[1]
+      const d = state.dnas.find((x) => x.id === id)
+      const removing = body.includes('name="remove"')
+      if (d.mj_image_url && !removing && !req.headers()['x-user-token']) return json({ error: 'לגנום הזה כבר יש תמונה' }, 403)
+      d.mj_image_url = removing ? null : `${SB}/storage/v1/object/public/zikuk-media/mj/${id}-${Date.now()}.png`
+      state.uploads = (state.uploads ?? 0) + 1
+      return json({ dna: d })
     }
     if (url.pathname === '/functions/v1/zikuk-distill') {
       const b = JSON.parse(req.postData())
@@ -121,6 +131,52 @@ try {
   await page.click('[data-testid=copy-next]')
   check((await page.evaluate(() => navigator.clipboard.readText())).startsWith('המשך'), 'copy next prompt')
   await page.click('[data-testid=copy-source]')
+
+  // studio: upload by file picker, then plate with text, card download, no replace for visitor
+  check(await page.locator('[data-testid=mj-drop]').isVisible(), 'drop zone shown when genome has no Midjourney image')
+  await page.setInputFiles('[data-testid=mj-input]', { name: 'mj.png', mimeType: 'image/png', buffer: PNG })
+  await page.waitForSelector('[data-testid=mj-plate]')
+  check(st.uploads === 1, 'file picker uploads')
+  check((await page.locator('[data-testid=mj-plate] figcaption').innerText()).includes('משפט זיקוק 1'), 'plate shows the genome text')
+  check((await page.getAttribute('.dna-hero-media img', 'src')).includes('/mj/'), 'hero switches to the Midjourney image')
+  check(await page.locator('[data-testid=mj-replace]').count() === 0, 'visitor cannot replace an existing image')
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-testid=mj-card]')])
+  await dl.saveAs('tests/shots/card.png')
+  // headless Chromium reports blob downloads as "download"; check the file itself
+  const card = fs.readFileSync('tests/shots/card.png')
+  check(card.readUInt32BE(16) === 1080 && card.readUInt32BE(20) === 1350, 'card download is a 1080x1350 PNG')
+  await page.locator('[data-testid=studio]').scrollIntoViewIfNeeded()
+  await page.waitForTimeout(700)
+  await page.screenshot({ path: 'tests/shots/studio.png' })
+
+  // drag and drop, then paste, on two other genomes
+  await page.goto(`${BASE}/dna/${mk(2).id}`)
+  await page.waitForSelector('[data-testid=mj-drop]')
+  const dropped = await page.evaluateHandle(async (b64) => {
+    const dt = new DataTransfer()
+    dt.items.add(new File([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], 'drop.png', { type: 'image/png' }))
+    return dt
+  }, PNG.toString('base64'))
+  await page.dispatchEvent('[data-testid=mj-drop]', 'dragenter', { dataTransfer: dropped })
+  check(await page.locator('.mj-drop.over').count() === 1, 'drag highlights drop zone')
+  await page.dispatchEvent('[data-testid=mj-drop]', 'drop', { dataTransfer: dropped })
+  await page.waitForSelector('[data-testid=mj-plate]')
+  check(st.uploads === 2, 'drag and drop uploads')
+  await page.goto(`${BASE}/dna/${mk(3).id}`)
+  await page.waitForSelector('[data-testid=mj-drop]')
+  await page.evaluate(async (b64) => {
+    const dt = new DataTransfer()
+    dt.items.add(new File([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], 'paste.png', { type: 'image/png' }))
+    window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true }))
+  }, PNG.toString('base64'))
+  await page.waitForSelector('[data-testid=mj-plate]')
+  check(st.uploads === 3, 'paste uploads')
+  await page.goto(BASE + '/')
+  await page.waitForSelector('[data-testid=dna-card]')
+  check(await page.locator('.card-mj').count() === 3, 'cards mark Midjourney images')
+  await page.goto(`${BASE}/dna/${mk(1).id}`)
+  await page.waitForSelector('[data-testid=dna-page]')
+  await genes.nth(0).click()
 
   // mutation
   await page.click('[data-testid=mutate-up]')
@@ -221,6 +277,18 @@ try {
   check(patch && JSON.parse(patch.body).title === 'שם חדש', 'edit sends PATCH title')
   check(await page.locator('[data-testid=dna-title]').innerText() === 'שם חדש', 'title updated in page')
   await page.click('[data-testid=start-edit]'); await page.click('[data-testid=cancel-edit]')
+  await page.setInputFiles('[data-testid=mj-input]', { name: 'a.png', mimeType: 'image/png', buffer: PNG })
+  await page.waitForSelector('[data-testid=mj-plate]')
+  await page.click('[data-testid=mj-replace]')
+  await page.waitForSelector('[data-testid=mj-drop]')
+  await page.click('[data-testid=mj-cancel]')
+  await page.click('[data-testid=mj-replace]')
+  await page.setInputFiles('[data-testid=mj-input]', { name: 'b.png', mimeType: 'image/png', buffer: PNG })
+  await page.waitForSelector('[data-testid=mj-plate]')
+  check(st.uploads === 2, 'admin can replace the image')
+  await page.click('[data-testid=mj-remove]')
+  await page.waitForSelector('[data-testid=mj-drop]')
+  check(true, 'admin can remove the image')
   await page.click('[data-testid=toggle-publish]')
   await page.waitForTimeout(300)
   check(st.calls.filter((c) => c.m === 'PATCH').some((c) => JSON.parse(c.body).published === false), 'hide sends published=false')

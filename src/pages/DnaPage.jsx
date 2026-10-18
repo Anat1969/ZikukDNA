@@ -4,7 +4,8 @@ import Helix from '../components/Helix.jsx'
 import CopyBox from '../components/CopyBox.jsx'
 import DnaCard from '../components/DnaCard.jsx'
 import DistillOverlay from '../components/DistillOverlay.jsx'
-import { geneList, dnaCode, KIND_LABEL } from '../lib/genes.js'
+import MjImage from '../components/MjImage.jsx'
+import { geneList, dnaCode, KIND_LABEL, mainImage } from '../lib/genes.js'
 import { distill, updateDna, deleteDna } from '../lib/supabase.js'
 import { Link, navigate, useRoute, setQuery } from '../lib/router.jsx'
 import { useStore } from '../store.jsx'
@@ -103,8 +104,8 @@ export default function DnaPage({ id }) {
     <article className="dna-page" data-testid="dna-page">
       <header className="dna-hero" ref={heroRef}>
         <div className="dna-hero-media">
-          {dna.image_url
-            ? <motion.img src={dna.image_url} alt={dna.title} style={{ y: imgY, scale: imgScale }} />
+          {mainImage(dna)
+            ? <motion.img key={mainImage(dna)} src={mainImage(dna)} alt={dna.title} style={{ y: imgY, scale: imgScale }} />
             : <div className="card-media-fallback" style={{ background: `linear-gradient(135deg, ${(dna.palette ?? []).join(', ') || '#2a2e33, #5d646c'})` }} />}
           <div className="dna-hero-shade" />
         </div>
@@ -181,8 +182,27 @@ export default function DnaPage({ id }) {
           {error && <p className="notice err" data-testid="mutate-error">{error}</p>}
         </section>
 
+        <section className="studio" data-testid="studio">
+          <div className="studio-head">
+            <span className="mono-label">04 / מהפרומפט לתמונה</span>
+            <h2 className="h2">{dna.mj_image_url ? 'התמונה שמייצגת את הגנום' : 'העתיקו, צרו במידג\'רני, החזירו לכאן'}</h2>
+            <ol className="studio-steps">
+              <li>מעתיקים את הפרומפט</li>
+              <li>יוצרים תמונה במידג'רני</li>
+              <li>גוררים, מדביקים או בוחרים אותה כאן. היא הופכת לתמונה של הגנום, עם הטקסט שלו.</li>
+            </ol>
+            <CopyBox label="פרומפט למידג'רני" text={dna.prompt_he} testId="copy-prompt" />
+            {dna.mj_image_url && dna.image_url && (
+              <div className="studio-auto">
+                <img src={dna.image_url} alt="" />
+                <span className="muted">התמונה שנוצרה אוטומטית בזיקוק</span>
+              </div>
+            )}
+          </div>
+          <MjImage dna={dna} />
+        </section>
+
         <section className="prompts">
-          <CopyBox label="פרומפט למידג'רני" text={dna.prompt_he} testId="copy-prompt" />
           <CopyBox label={`פרומפט המשך ל-Claude${dna.magic_words?.length ? ` / ${dna.magic_words.join(', ')}` : ''}`} text={dna.next_prompt} testId="copy-next" />
           {dna.source_input && <CopyBox label="הרעיון הגולמי" text={dna.source_input} testId="copy-source" />}
         </section>

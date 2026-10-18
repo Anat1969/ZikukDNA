@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import Helix from '../components/Helix.jsx'
 import DnaCard from '../components/DnaCard.jsx'
 import DistillOverlay from '../components/DistillOverlay.jsx'
-import { blendGenes, dnaCode } from '../lib/genes.js'
+import { blendGenes, dnaCode, mainImage } from '../lib/genes.js'
 import { distill } from '../lib/supabase.js'
 import { navigate, useRoute, setQuery } from '../lib/router.jsx'
 import { useStore } from '../store.jsx'
@@ -14,7 +14,7 @@ function Slot({ dna, tag }) {
       <span className="mono-label">הורה {tag}</span>
       {dna ? (
         <>
-          {dna.image_url && <img src={dna.image_url} alt="" />}
+          {mainImage(dna) && <img src={mainImage(dna)} alt="" />}
           <h3>{dna.title}</h3>
           <span className="mono">{dnaCode(dna.id)}</span>
         </>

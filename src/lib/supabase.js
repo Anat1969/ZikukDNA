@@ -10,7 +10,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 
 export const DEV_CHAT_URL = 'https://claude.ai/code/session_01PSpgUm8awdgvBVVGzYKP4o'
 
-const COLS = 'id,created_at,kind,lens,title,source_input,distillation,essence,tension,genes,palette,magic_words,description_he,prompt_he,prompt_en,next_prompt,image_url,parent_ids,published,featured'
+const COLS = 'id,created_at,kind,lens,title,source_input,distillation,essence,tension,genes,palette,magic_words,description_he,prompt_he,prompt_en,next_prompt,image_url,mj_image_url,parent_ids,published,featured'
 
 export async function listDnas() {
   const { data, error } = await supabase.from('zikuk_dnas').select(COLS).order('created_at', { ascending: false }).limit(300)
@@ -30,6 +30,22 @@ export async function distill(payload) {
     await new Promise((r) => setTimeout(r, 1500 * (i + 1)))
     res = await call()
   }
+  let body = {}
+  try { body = await res.json() } catch { /* empty */ }
+  if (!res.ok || !body.dna) throw new Error(body.error || `שגיאה ${res.status}`)
+  return body.dna
+}
+
+// Attaches (or, with file=null, removes) the Midjourney image for a genome.
+export async function uploadMj(dnaId, file) {
+  const fd = new FormData()
+  fd.append('dnaId', dnaId)
+  if (file) fd.append('file', file, file.name || 'midjourney.jpg')
+  else fd.append('remove', '1')
+  const { data } = await supabase.auth.getSession()
+  const headers = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+  if (data.session?.access_token) headers['x-user-token'] = data.session.access_token
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/zikuk-upload`, { method: 'POST', headers, body: fd })
   let body = {}
   try { body = await res.json() } catch { /* empty */ }
   if (!res.ok || !body.dna) throw new Error(body.error || `שגיאה ${res.status}`)
