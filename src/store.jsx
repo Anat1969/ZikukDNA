@@ -11,6 +11,7 @@ export function StoreProvider({ children }) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [toasts, setToasts] = useState([])
+  const [pageItems, setPageItems] = useState([]) // editing actions of the current page, shown in the A&I menu
 
   const refresh = useCallback(async () => {
     try { setDnas(await listDnas()); setStatus('ready') } catch { setStatus('error') }
@@ -35,13 +36,13 @@ export function StoreProvider({ children }) {
   }, [])
 
   const value = useMemo(() => ({
-    dnas, status, session, isAdmin, refresh, toast, toasts, authOpen,
+    dnas, status, session, isAdmin, refresh, toast, toasts, authOpen, pageItems, setPageItems,
     upsert: (d) => setDnas((all) => [d, ...all.filter((x) => x.id !== d.id)].sort((a, b) => b.created_at.localeCompare(a.created_at))),
     remove: (id) => setDnas((all) => all.filter((x) => x.id !== id)),
     openAuth: () => setAuthOpen(true),
     closeAuth: () => setAuthOpen(false),
     signOut: async () => { await supabase.auth.signOut(); setSession(null) },
-  }), [dnas, status, session, isAdmin, refresh, toast, toasts, authOpen])
+  }), [dnas, status, session, isAdmin, refresh, toast, toasts, authOpen, pageItems])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

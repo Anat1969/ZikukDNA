@@ -5,7 +5,8 @@ import { chromium } from 'playwright-core'
 import { spawn } from 'child_process'
 import fs from 'fs'
 
-const BASE = 'http://localhost:4173'
+const PORT = process.env.PORT || '4173'
+const BASE = `http://localhost:${PORT}`
 const SB = 'https://ktqmwpbzcnzkhjskqisy.supabase.co'
 const PNG = fs.readFileSync('public/icons/icon-512.png')
 fs.mkdirSync('tests/shots', { recursive: true })
@@ -21,10 +22,16 @@ const mk = (n, extra = {}) => ({
 const fixtures = () => [mk(1, { lens: 'טבע ונוף', featured: true }), mk(2), mk(3, { lens: 'עיר ומרחב' }), mk(4, { kind: 'hybrid', parent_ids: [mk(1).id, mk(2).id] })]
 
 const fail = []
+// The A&I logo button is loaded from the portfolio app; serve a local copy when AI_MENU_JS points to one.
+const AI_MENU = 'https://appofapp-gh.vercel.app/ai-menu.js'
+const openMenu = (page) => page.click('ai-menu .logo')
+const item = (page, text) => page.locator('ai-menu .item', { hasText: text }).first()
+const menuClick = async (page, text) => { await openMenu(page); await item(page, text).click() }
 const check = (cond, msg) => { if (!cond) { fail.push(msg); console.log('  FAIL', msg) } else console.log('  ok  ', msg) }
 
 async function setup(ctx, { admin }) {
   const state = { dnas: fixtures(), calls: [] }
+  if (process.env.AI_MENU_JS) await ctx.route(AI_MENU, (r) => r.fulfill({ path: process.env.AI_MENU_JS, contentType: 'application/javascript' }))
   await ctx.route(`${SB}/**`, async (route) => {
     const req = route.request(), url = new URL(req.url()), m = req.method()
     state.calls.push({ m, path: url.pathname + url.search, body: req.postData() })
@@ -75,7 +82,7 @@ async function noHScroll(page, label) {
   check(w.s <= w.c + 1, `${label}: no horizontal scroll (${w.s} <= ${w.c})`)
 }
 
-const server = spawn('npx', ['vite', 'preview', '--port', '4173', '--strictPort'], { stdio: 'ignore' })
+const server = spawn('npx', ['vite', 'preview', '--port', PORT, '--strictPort'], { stdio: 'ignore' })
 await new Promise((r) => setTimeout(r, 2500))
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
 
@@ -96,11 +103,14 @@ try {
   await page.screenshot({ path: 'tests/shots/home.png' })
   await page.screenshot({ path: 'tests/shots/home-full.png', fullPage: true })
 
-  await page.click('[data-testid=system-menu]'); await page.click('[data-testid=copy-link]')
-  check(await page.waitForSelector('[data-testid=toast]', { timeout: 3000 }).then(() => true, () => false), 'copy link shows toast')
+  check(await page.locator('ai-menu .logo').isVisible(), 'A&I logo button in the top bar')
+  check(!(await page.locator('header >> text=העתקת קישור').first().isVisible().catch(() => false)), 'no loose development buttons in the bar')
+  await menuClick(page, 'העתקת קישור')
+  await page.waitForTimeout(300)
   check((await page.evaluate(() => navigator.clipboard.readText())).startsWith(BASE), 'copy link writes URL')
-  await page.click('[data-testid=system-menu]')
-  check(await page.getAttribute('[data-testid=dev-chat]', 'href') === 'https://claude.ai/code/session_01PSpgUm8awdgvBVVGzYKP4o', 'dev chat link')
+  await page.waitForTimeout(1000)
+  await openMenu(page)
+  check(await item(page, 'שיחת הפיתוח').getAttribute('href') === 'https://claude.ai/code/session_01PSpgUm8awdgvBVVGzYKP4o', 'dev chat link')
   await page.screenshot({ path: 'tests/shots/menu.png' })
 
   // lens filter + search keep state in URL
@@ -238,7 +248,8 @@ try {
   await page.screenshot({ path: 'tests/shots/distill.png' })
 
   // auth modal: Google off -> magic link
-  await page.click('[data-testid=system-menu]'); await page.click('[data-testid=signin]')
+  await page.keyboard.press('Escape')
+  await menuClick(page, 'כניסה')
   await page.waitForSelector('[data-testid=google-off]')
   check(await page.locator('[data-testid=google]').count() === 0, 'no Google button when provider is off')
   await page.fill('#auth-email', 'a@b.co')
@@ -269,20 +280,22 @@ try {
   page.on('dialog', (d) => d.accept())
   page.on('pageerror', (e) => check(false, `admin page error: ${e}`))
   await page.goto(`${BASE}/dna/${mk(2).id}`)
-  await page.waitForSelector('[data-testid=adminbar]')
-  await page.click('[data-testid=system-menu]')
-  check(await page.locator('[data-testid=signout]').innerText() === 'יציאה (אדמין)', 'admin recognized')
+  await page.waitForSelector('[data-testid=dna-page]')
+  await page.waitForTimeout(800)
+  check(await page.locator('.adminbar').count() === 0, 'no floating editor bar')
+  await openMenu(page)
+  check(await item(page, 'יציאה (אדמין)').waitFor({ timeout: 5000 }).then(() => true, () => false), 'admin recognized')
   await page.keyboard.press('Escape')
   await page.waitForTimeout(300)
-  check(await page.locator('[data-testid=system-panel]').count() === 0, 'Escape closes system menu')
-  await page.click('[data-testid=start-edit]')
+  check(await page.locator('ai-menu .panel').isHidden(), 'Escape closes system menu')
+  await menuClick(page, 'עריכת טקסט')
   await page.locator('[data-testid=edit-title]').evaluate((el) => { el.textContent = 'שם חדש'; el.dispatchEvent(new InputEvent('input', { bubbles: true })) })
-  await page.click('[data-testid=save-edit]')
+  await menuClick(page, 'שמירה')
   await page.waitForSelector('[data-testid=dna-title]')
   const patch = st.calls.find((c) => c.m === 'PATCH')
   check(patch && JSON.parse(patch.body).title === 'שם חדש', 'edit sends PATCH title')
   check(await page.locator('[data-testid=dna-title]').innerText() === 'שם חדש', 'title updated in page')
-  await page.click('[data-testid=start-edit]'); await page.click('[data-testid=cancel-edit]')
+  await menuClick(page, 'עריכת טקסט'); await menuClick(page, 'ביטול עריכה')
   await page.setInputFiles('[data-testid=mj-input]', { name: 'a.png', mimeType: 'image/png', buffer: PNG })
   await page.waitForSelector('[data-testid=mj-plate]')
   await page.click('[data-testid=mj-replace]')
@@ -295,19 +308,20 @@ try {
   await page.click('[data-testid=mj-remove]')
   await page.waitForSelector('[data-testid=mj-drop]')
   check(true, 'admin can remove the image')
-  await page.click('[data-testid=toggle-publish]')
+  await menuClick(page, 'הסתרה')
   await page.waitForTimeout(300)
   check(st.calls.filter((c) => c.m === 'PATCH').some((c) => JSON.parse(c.body).published === false), 'hide sends published=false')
-  await page.click('[data-testid=toggle-featured]')
+  await menuClick(page, 'גנום מוביל')
   await page.waitForTimeout(300)
   check(st.calls.filter((c) => c.m === 'PATCH').some((c) => JSON.parse(c.body).featured === true), 'feature sends featured=true')
   await page.screenshot({ path: 'tests/shots/admin.png' })
-  await page.click('[data-testid=delete]')
+  await menuClick(page, 'מחיקת הגנום')
   await page.waitForURL(BASE + '/')
   check(st.calls.some((c) => c.m === 'DELETE'), 'delete sends DELETE')
-  await page.click('[data-testid=system-menu]'); await page.click('[data-testid=signout]')
-  await page.click('[data-testid=system-menu]')
-  await page.waitForSelector('[data-testid=signin]')
+  await menuClick(page, 'יציאה')
+  await page.waitForTimeout(300)
+  await openMenu(page)
+  await item(page, 'כניסה').waitFor()
   check(true, 'sign out')
   await ctx.close()
 
@@ -324,14 +338,15 @@ try {
   await page.goto(BASE + '/')
   await page.waitForSelector('[data-testid=dna-card]')
   await page.screenshot({ path: 'tests/shots/m-home.png' })
-  await page.click('[data-testid=system-menu]')
-  await page.waitForSelector('[data-testid=system-panel] [data-testid=copy-link]')
+  check(await page.locator('ai-menu .logo').isVisible(), 'mobile: A&I logo button visible')
+  await openMenu(page)
+  await item(page, 'העתקת קישור').waitFor()
   await noHScroll(page, 'mobile system menu open')
   await page.screenshot({ path: 'tests/shots/m-menu.png' })
-  await page.locator('[data-testid=system-panel] .system-item', { hasText: 'מעבדת הכלאה' }).click()
+  await page.keyboard.press('Escape')
+  await page.locator('.topnav .navlink', { hasText: 'מעבדת הכלאה' }).click()
   await page.waitForURL(/\/lab/)
-  await page.waitForTimeout(500)
-  check(await page.locator('[data-testid=system-panel]').count() === 0, 'system menu closes on navigate')
+  check(true, 'mobile nav stays in the top bar')
   await page.goto(`${BASE}/dna/${mk(1).id}`)
   await page.waitForTimeout(800)
   await page.screenshot({ path: 'tests/shots/m-dna.png' })

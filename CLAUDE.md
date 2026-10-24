@@ -18,7 +18,10 @@
 
 ## החלטות ותיקונים של ענת
 - עבודה לפי הסקיל end-to-end-builder. מיזוג PR ל-main אחרי בדיקה ירוקה בלי לשאול (אישור קבוע).
-- בלי אייקונים. סרגל עליון קבוע: שם האפליקציה לדף הבית, וכפתור אחד מהלוגו המלא של ענת (`src/components/BrandMenu.jsx`, קבצים ב-`public/brand/`) שמרכז את כפתורי המערכת: העתקת קישור, שיחת הפיתוח, התקנה, כניסה ויציאה. בנייד הוא מכיל גם את הניווט. זו הנחיה קבועה לכל אפליקציה של ענת.
+- בלי אייקונים. סרגל עליון קבוע: שם האפליקציה לדף הבית, ניווט התוכן, וכפתור הלוגו A&I (`src/components/BrandMenu.jsx`, עוטף את `<ai-menu>`). פעולות העריכה של דף הגנום (עריכת טקסט, פרסום, גנום מוביל, מחיקה) נכנסות לכפתור דרך `pageItems` ב-store, בלי פס עריכה צף. בנייד הניווט עובר לשורה שנייה בסרגל.
 - פרומפט מידג'רני בעברית בלבד, ותמיד מסתיים ב-`Documentary realism, Professional architecture photography, 1:1 --no text, words, writing, frame divisions` (מתווסף בשרת).
 - פרויקט Supabase הישן ZIKUK היה ריק (בלי טבלאות, פונקציות או משתמשים) ואפשר למחוק אותו.
 - בדף הגנום: אזור "מהפרומפט לתמונה" שבו מעלים את התמונה ממידג'רני בגרירה, בהדבקה (Ctrl+V) או בבחירת קובץ. התמונה מוצגת עם הטקסט של הגנום, ואפשר להוריד כרטיס 1080x1350 של תמונה וטקסט.
+
+## A&I logo button
+The top bar holds only the app name (links home), content navigation, and ONE logo button "אד' ענת שטיבלמן A&I" (`<ai-menu>` from https://appofapp-gh.vercel.app/ai-menu.js). Every editing and development action (העתקת קישור, שיחת הפיתוח, פרויקט המחקר, התקנת האפליקציה, edit mode, add, delete) lives only inside it, never as loose buttons. Standard: https://github.com/Anat1969/AppOfApp-GH/blob/main/docs/ai-menu-standard.md
