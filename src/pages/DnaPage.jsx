@@ -20,40 +20,40 @@ function Editable({ as: Tag = 'p', field, dna, editing, setDraft, className, tes
   )
 }
 
+// The genome's editing actions live in the A&I logo button, not in a floating bar.
 function AdminBar({ dna, editing, setEditing, draft, setDraft }) {
-  const { upsert, remove, toast } = useStore()
+  const store = useStore()
+  const { setPageItems } = store
+  const fns = useRef(store)
+  fns.current = store
   const [busy, setBusy] = useState(false)
-  const run = async (fn, msg) => {
-    setBusy(true)
-    try { await fn(); if (msg) toast(msg) } catch (e) { toast(`נכשל: ${e.message}`) } finally { setBusy(false) }
-  }
-  return (
-    <motion.div className="adminbar" data-testid="adminbar" initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
-      <span className="mono-label">עריכה</span>
-      {editing ? (
-        <>
-          <button className="btn btn-accent btn-sm" disabled={busy} data-testid="save-edit" onClick={() => run(async () => {
-            const patch = Object.fromEntries(Object.entries(draft).map(([k, v]) => [k, (v ?? '').trim()]).filter(([k, v]) => v && v !== dna[k]))
-            if (Object.keys(patch).length) upsert(await updateDna(dna.id, patch))
-            setEditing(false); setDraft({})
-          }, 'נשמר')}>שמירה</button>
-          <button className="btn btn-ghost btn-sm" data-testid="cancel-edit" onClick={() => { setEditing(false); setDraft({}) }}>ביטול</button>
-        </>
-      ) : (
-        <button className="btn btn-ghost btn-sm" data-testid="start-edit" onClick={() => setEditing(true)}>עריכת טקסט</button>
-      )}
-      <button className="btn btn-ghost btn-sm" disabled={busy} data-testid="toggle-publish" onClick={() => run(async () => upsert(await updateDna(dna.id, { published: !dna.published })), dna.published ? 'הוסתר' : 'פורסם')}>
-        {dna.published ? 'הסתרה' : 'פרסום'}
-      </button>
-      <button className="btn btn-ghost btn-sm" disabled={busy} data-testid="toggle-featured" onClick={() => run(async () => upsert(await updateDna(dna.id, { featured: !dna.featured })), 'עודכן')}>
-        {dna.featured ? 'הסרה מהמוביל' : 'גנום מוביל'}
-      </button>
-      <button className="btn btn-danger btn-sm" disabled={busy} data-testid="delete" onClick={() => {
+  useEffect(() => {
+    const { upsert, remove, toast } = fns.current
+    const run = async (fn, msg) => {
+      setBusy(true)
+      try { await fn(); if (msg) toast(msg) } catch (e) { toast(`נכשל: ${e.message}`) } finally { setBusy(false) }
+    }
+    setPageItems([
+      ...(editing ? [
+        { label: 'שמירה', disabled: busy, onSelect: () => run(async () => {
+          const patch = Object.fromEntries(Object.entries(draft).map(([k, v]) => [k, (v ?? '').trim()]).filter(([k, v]) => v && v !== dna[k]))
+          if (Object.keys(patch).length) upsert(await updateDna(dna.id, patch))
+          setEditing(false); setDraft({})
+        }, 'נשמר') },
+        { label: 'ביטול עריכה', onSelect: () => { setEditing(false); setDraft({}) } },
+      ] : [
+        { label: 'עריכת טקסט', onSelect: () => setEditing(true) },
+      ]),
+      { label: dna.published ? 'הסתרה' : 'פרסום', disabled: busy, onSelect: () => run(async () => upsert(await updateDna(dna.id, { published: !dna.published })), dna.published ? 'הוסתר' : 'פורסם') },
+      { label: dna.featured ? 'הסרה מהמוביל' : 'גנום מוביל', disabled: busy, onSelect: () => run(async () => upsert(await updateDna(dna.id, { featured: !dna.featured })), 'עודכן') },
+      { label: 'מחיקת הגנום', disabled: busy, onSelect: () => {
         if (!confirm('למחוק את הגנום הזה לצמיתות?')) return
         run(async () => { await deleteDna(dna.id); remove(dna.id); navigate('/') }, 'נמחק')
-      }}>מחיקה</button>
-    </motion.div>
-  )
+      } },
+    ])
+  }, [dna, editing, draft, busy, setEditing, setDraft, setPageItems])
+  useEffect(() => () => setPageItems([]), [setPageItems])
+  return null
 }
 
 export default function DnaPage({ id }) {

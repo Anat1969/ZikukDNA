@@ -21,7 +21,7 @@ export default function TopBar() {
             <Link key={n.to} to={n.to} className={`navlink ${path === n.to ? 'active' : ''}`}>{n.label}</Link>
           ))}
         </nav>
-        <BrandMenu nav={NAV} />
+        <BrandMenu />
       </div>
     </header>
   )
