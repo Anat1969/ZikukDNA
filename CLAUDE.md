@@ -6,7 +6,7 @@
 - Vite + React + framer-motion. עברית ו-RTL. ניתוב פשוט ב-`src/lib/router.jsx` (נתיבים: `/`, `/distill`, `/lab?a=&b=`, `/dna/:id?gene=`). סינון בדף הבית ב-`?lens=&q=`.
 - Supabase: פרויקט משותף `cultura-GH` (ktqmwpbzcnzkhjskqisy). רק טבלאות `zikuk_*` והדלי `zikuk-media`.
   - `zikuk_dnas`: קריאה ציבורית למה שפורסם, עדכון ומחיקה לאדמין בלבד (`zikuk_is_admin()` לפי מייל בטבלת `zikuk_admins`).
-  - פונקציית Edge `zikuk-distill` (מקור ב-`supabase/functions/zikuk-distill`): Claude לטקסט, fal.ai לתמונה, כתיבה עם service role, מגבלה של 20 זיקוקים בשעה. פתוחה לכל מבקר.
+  - פונקציית Edge `zikuk-distill` (מקור ב-`supabase/functions/zikuk-distill`): Claude לטקסט, fal.ai לתמונה, כתיבה עם service role, מגבלה של 20 זיקוקים בשעה. פתוחה לכל מבקר. מפתח Claude נקרא מ-`ANTHROPIC_API_KEY` ומכל סוד ששמו מכיל anthropic או claude; מפתח שנדחה (401) מדולג, ואם כולם נדחו המשתמש רואה הודעה בעברית ולא את שגיאת ה-API הגולמית.
   - פונקציית Edge `zikuk-upload` (מקור ב-`supabase/functions/zikuk-upload`): מצרפת לגנום את התמונה שנוצרה במידג'רני (`mj_image_url`). כל מבקר יכול להוסיף תמונה ראשונה, החלפה והסרה רק לאדמין (טוקן המשתמש נשלח ב-`x-user-token`). מגבלה של 30 העלאות בשעה, עד 10MB.
   - התמונה שמייצגת גנום היא `mainImage()`: תמונת מידג'רני אם יש, אחרת התמונה שנוצרה. משמשת בכרטיסים, בגנום המוביל, במעבדה ובראש דף הגנום.
   - Google כבוי בפרויקט כרגע, ולכן חלון הכניסה מציע קישור חד־פעמי למייל. כשיופעל Google, הכפתור יופיע לבד.

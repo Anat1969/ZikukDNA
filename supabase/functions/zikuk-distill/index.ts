@@ -107,6 +107,24 @@ function falKey(): string | undefined {
   }
 }
 
+// The Claude key may be stored under ANTHROPIC_API_KEY or another name
+// (CLAUDE_API_KEY, ANTHROPIC_KEY...). Collect every candidate, deduplicated,
+// so a stale key does not block a valid one stored next to it.
+function anthropicKeys(): string[] {
+  const keys: string[] = [];
+  // Tolerate common paste mistakes: quotes, a "Bearer " prefix, stray whitespace.
+  const add = (v?: string) => {
+    const t = v?.trim().replace(/^["']|["']$/g, "").replace(/^Bearer\s+/i, "").replace(/\s+/g, "");
+    if (t && !keys.includes(t)) keys.push(t);
+  };
+  add(Deno.env.get("ANTHROPIC_API_KEY"));
+  for (const name of Object.keys(Deno.env.toObject())) {
+    if (/^SUPABASE_/i.test(name) || !/anthropic|claude/i.test(name)) continue;
+    add(Deno.env.get(name));
+  }
+  return keys;
+}
+
 async function makeImage(prompt: string, id: string): Promise<string | null> {
   const key = falKey();
   if (!key) return null;
@@ -188,28 +206,44 @@ Deno.serve(async (req) => {
     userText = `מוטציה: קחו את הגנום הבא ו${dir} את גן ה${gene.label}. שאר הגנים נשארים קרובים למקור, אבל הזהות כולה משתנה בהתאם. הסבירו בזיקוק מה השתנה.\nהמקור: ${describe(parents[0])}${input ? `\nכוונה: ${input}` : ""}`;
   }
 
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY")?.trim();
-  if (!apiKey) return json({ error: "ANTHROPIC_API_KEY is not configured" }, 500);
-  const client = new Anthropic({ apiKey });
+  const keys = anthropicKeys();
+  if (!keys.length) return json({ error: "מפתח Claude לא מוגדר בשרת. צריך להגדיר ANTHROPIC_API_KEY בסודות של Supabase." }, 500);
 
-  let dna: Record<string, unknown>;
-  try {
-    const response = await client.beta.messages.create({
-      model: "claude-opus-5-5",
-      max_tokens: 12000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      system: SYSTEM,
-      output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
-      messages: [{ role: "user", content: userText }],
-    } as never);
-    if (response.stop_reason === "refusal") return json({ error: "הבקשה נדחתה. נסו ניסוח אחר." }, 422);
-    const text = response.content.filter((b: { type: string }) => b.type === "text").map((b: { text: string }) => b.text).join("");
-    dna = JSON.parse(text);
-  } catch (err) {
-    if (err instanceof Anthropic.RateLimitError) return json({ error: "עומס זמני, נסו שוב בעוד דקה." }, 429);
-    if (err instanceof Anthropic.APIError) return json({ error: `Claude API ${err.status}: ${err.message}` }, 502);
-    return json({ error: String(err) }, 500);
+  let dna: Record<string, unknown> | null = null;
+  let authFailed = false;
+  for (const apiKey of keys) {
+    const client = new Anthropic({ apiKey });
+    try {
+      const response = await client.beta.messages.create({
+        model: "claude-opus-5-5",
+        max_tokens: 12000,
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+        system: SYSTEM,
+        output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
+        messages: [{ role: "user", content: userText }],
+      } as never);
+      if (response.stop_reason === "refusal") return json({ error: "הבקשה נדחתה. נסו ניסוח אחר." }, 422);
+      const text = response.content.filter((b: { type: string }) => b.type === "text").map((b: { text: string }) => b.text).join("");
+      dna = JSON.parse(text);
+      break;
+    } catch (err) {
+      if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
+        console.error(`Claude key ...${apiKey.slice(-4)} rejected: ${err.status}`);
+        authFailed = true;
+        continue;
+      }
+      if (err instanceof Anthropic.RateLimitError) return json({ error: "עומס זמני, נסו שוב בעוד דקה." }, 429);
+      if (err instanceof Anthropic.APIError) {
+        console.error(`Claude API ${err.status}: ${err.message}`);
+        return json({ error: "שירות הזיקוק לא זמין כרגע. נסו שוב בעוד רגע." }, 502);
+      }
+      console.error(String(err));
+      return json({ error: "הזיקוק נכשל. נסו שוב." }, 500);
+    }
+  }
+  if (!dna) {
+    return json({ error: authFailed ? "מפתח Claude בשרת אינו תקף. צריך לעדכן את ANTHROPIC_API_KEY בסודות של Supabase." : "הזיקוק נכשל. נסו שוב." }, 503);
   }
 
   // Normalize genes: exactly one per key, in canonical order, intensity clamped.
