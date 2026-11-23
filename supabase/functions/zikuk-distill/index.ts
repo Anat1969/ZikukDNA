@@ -5,6 +5,8 @@
 // zikuk-media bucket. Open to every visitor, capped at HOURLY_LIMIT per hour.
 import Anthropic from "npm:@anthropic-ai/sdk";
 
+declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void };
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -284,5 +286,13 @@ Deno.serve(async (req) => {
   });
   if (!ins.ok) return json({ error: `שמירה נכשלה: ${await ins.text()}` }, 500);
   const [saved] = await ins.json();
+  // Every new genome gets its story article, written in the background.
+  EdgeRuntime.waitUntil(
+    fetch(`${SB_URL}/functions/v1/zikuk-article`, {
+      method: "POST",
+      headers: { ...SB_HEADERS, "Content-Type": "application/json" },
+      body: JSON.stringify({ dnaId: saved.id }),
+    }).catch((e) => console.error(`article: ${e}`)),
+  );
   return json({ dna: saved });
 });

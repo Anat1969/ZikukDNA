@@ -6,6 +6,8 @@ import Home from './pages/Home.jsx'
 import Distill from './pages/Distill.jsx'
 import Lab from './pages/Lab.jsx'
 import DnaPage from './pages/DnaPage.jsx'
+import Articles from './pages/Articles.jsx'
+import ArticlePage from './pages/ArticlePage.jsx'
 import { useRoute, Link } from './lib/router.jsx'
 import { useStore } from './store.jsx'
 
@@ -28,6 +30,8 @@ export default function App() {
   else if (path === '/distill') page = <Distill />
   else if (path === '/lab') page = <Lab />
   else if (path.startsWith('/dna/')) page = <DnaPage id={path.slice(5)} />
+  else if (path === '/articles') page = <Articles />
+  else if (path.startsWith('/articles/')) page = <ArticlePage id={path.slice(10)} />
   else page = <NotFound />
 
   useEffect(() => {

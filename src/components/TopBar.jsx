@@ -5,6 +5,7 @@ const NAV = [
   { to: '/distill', label: 'זיקוק חדש' },
   { to: '/lab', label: 'מעבדת הכלאה' },
   { to: '/#genome', label: 'מפת הגנום' },
+  { to: '/articles', label: 'כתבות' },
 ]
 
 export default function TopBar() {
@@ -18,7 +19,7 @@ export default function TopBar() {
         </Link>
         <nav className="topnav" aria-label="ניווט ראשי">
           {NAV.map((n) => (
-            <Link key={n.to} to={n.to} className={`navlink ${path === n.to ? 'active' : ''}`}>{n.label}</Link>
+            <Link key={n.to} to={n.to} className={`navlink ${path === n.to || (n.to === '/articles' && path.startsWith('/articles')) ? 'active' : ''}`}>{n.label}</Link>
           ))}
         </nav>
         <BrandMenu />

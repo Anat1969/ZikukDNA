@@ -52,6 +52,43 @@ export async function uploadMj(dnaId, file) {
   return body.dna
 }
 
+const ARTICLE_COLS = 'id,created_at,updated_at,kind,dna_id,dna_ids,title_light,title_bold,lede,chapters,meta_insight,meta_explain,steps,question,published'
+
+export async function listArticles() {
+  const { data, error } = await supabase.from('zikuk_articles').select(ARTICLE_COLS).order('created_at', { ascending: false }).limit(300)
+  if (error) throw error
+  return data ?? []
+}
+
+// Asks the server to write a genome's story (it returns the existing one when there is one),
+// or, with { mode: 'synthesis' }, a synthesis across all stories (admin only).
+export async function writeArticle(payload) {
+  const { data } = await supabase.auth.getSession()
+  const headers = { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+  if (data.session?.access_token) headers['x-user-token'] = data.session.access_token
+  const call = () => fetch(`${SUPABASE_URL}/functions/v1/zikuk-article`, { method: 'POST', headers, body: JSON.stringify(payload) })
+  let res = await call()
+  for (let i = 0; res.status === 503 && i < 2; i++) {
+    await new Promise((r) => setTimeout(r, 1500 * (i + 1)))
+    res = await call()
+  }
+  let body = {}
+  try { body = await res.json() } catch { /* empty */ }
+  if (!res.ok || !body.article) throw new Error(body.error || `שגיאה ${res.status}`)
+  return body.article
+}
+
+export async function updateArticle(id, patch) {
+  const { data, error } = await supabase.from('zikuk_articles').update(patch).eq('id', id).select(ARTICLE_COLS).single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteArticle(id) {
+  const { error } = await supabase.from('zikuk_articles').delete().eq('id', id)
+  if (error) throw error
+}
+
 export async function updateDna(id, patch) {
   const { data, error } = await supabase.from('zikuk_dnas').update(patch).eq('id', id).select(COLS).single()
   if (error) throw error
