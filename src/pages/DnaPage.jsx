@@ -6,7 +6,7 @@ import DnaCard from '../components/DnaCard.jsx'
 import DistillOverlay from '../components/DistillOverlay.jsx'
 import MjImage from '../components/MjImage.jsx'
 import { geneList, dnaCode, KIND_LABEL, mainImage } from '../lib/genes.js'
-import { distill, updateDna, deleteDna } from '../lib/supabase.js'
+import { distill, updateDna, deleteDna, writeArticle } from '../lib/supabase.js'
 import { Link, navigate, useRoute, setQuery } from '../lib/router.jsx'
 import { useStore } from '../store.jsx'
 
@@ -54,6 +54,22 @@ function AdminBar({ dna, editing, setEditing, draft, setDraft }) {
   }, [dna, editing, draft, busy, setEditing, setDraft, setPageItems])
   useEffect(() => () => setPageItems([]), [setPageItems])
   return null
+}
+
+// Link from a genome to its story article; when the story is not written yet, writes it.
+function StoryLink({ dna }) {
+  const { articles, upsertArticle, toast } = useStore()
+  const [busy, setBusy] = useState(false)
+  const story = articles.find((a) => a.kind === 'story' && a.dna_id === dna.id)
+  if (story) return <Link to={`/articles/${story.id}`} className="story-link" data-testid="story-link"><span className="mono-label">סיפור הזיקוק</span><b>{story.title_light} {story.title_bold}</b></Link>
+  return (
+    <button className="story-link" disabled={busy} data-testid="story-write" onClick={async () => {
+      setBusy(true)
+      try { const a = await writeArticle({ dnaId: dna.id }); upsertArticle(a); navigate(`/articles/${a.id}`) } catch (e) { toast(e.message); setBusy(false) }
+    }}>
+      <span className="mono-label">סיפור הזיקוק</span><b>{busy ? 'הכתבה נכתבת, דקה או שתיים' : 'לכתוב את הסיפור של הזיקוק הזה'}</b>
+    </button>
+  )
 }
 
 export default function DnaPage({ id }) {
@@ -117,6 +133,7 @@ export default function DnaPage({ id }) {
           </div>
           <Editable as="h1" field="title" className="display" testId="dna-title" {...ep} />
           <Editable as="p" field="distillation" className="distillation" testId="dna-distillation" {...ep} />
+          <StoryLink dna={dna} />
         </div>
       </header>
 

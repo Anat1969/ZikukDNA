@@ -19,6 +19,17 @@ const mk = (n, extra = {}) => ({
   prompt_he: `פרומפט ${n}, Documentary realism, Professional architecture photography, 1:1 --no text, words, writing, frame divisions`,
   prompt_en: 'x', next_prompt: `המשך ${n}`, image_url: `${SB}/storage/v1/object/public/zikuk-media/dna/${n}.png`, parent_ids: [], published: true, featured: false, ...extra,
 })
+const art = (n, extra = {}) => ({
+  id: `a000000${n}-0000-4000-8000-00000000000${n}`, created_at: `2026-11-1${n}T10:00:00Z`, updated_at: `2026-11-1${n}T10:00:00Z`, kind: 'story', dna_id: mk(n).id, dna_ids: [mk(n).id],
+  title_light: `דימוי ${n}`, title_bold: `טענה ${n}`, lede: `פתיח ${n}`,
+  chapters: ['החומר הגולמי', 'מה מתחת', 'המתח', 'הקוד'].map((h, i) => ({ heading: h, body: `גוף ${n}.${i} גנום 1 גנום 2`, insight: `תובנה ${n}.${i}` })),
+  meta_insight: `תובנה מתובנות ${n}`, meta_explain: `הסבר ${n}`, steps: ['1. צעד א', '2. צעד ב', 'צעד ג'], question: `שאלה ${n}`, published: true, ...extra,
+})
+const articleFixtures = () => [
+  art(5, { kind: 'synthesis', dna_id: null, dna_ids: [mk(1).id, mk(4).id], title_light: 'סינתזה', title_bold: 'של הכול', created_at: '2026-11-20T10:00:00Z' }),
+  art(4, { dna_ids: [mk(4).id, mk(1).id, mk(2).id], chapters: [...art(4).chapters, { heading: 'השושלת', body: 'ירושה', insight: 'תובנת שושלת' }] }),
+  art(1),
+]
 const fixtures = () => [mk(1, { lens: 'טבע ונוף', featured: true }), mk(2), mk(3, { lens: 'עיר ומרחב' }), mk(4, { kind: 'hybrid', parent_ids: [mk(1).id, mk(2).id] })]
 
 const fail = []
@@ -30,7 +41,7 @@ const menuClick = async (page, text) => { await openMenu(page); await item(page,
 const check = (cond, msg) => { if (!cond) { fail.push(msg); console.log('  FAIL', msg) } else console.log('  ok  ', msg) }
 
 async function setup(ctx, { admin }) {
-  const state = { dnas: fixtures(), calls: [] }
+  const state = { dnas: fixtures(), articles: articleFixtures(), calls: [] }
   if (process.env.AI_MENU_JS) await ctx.route(AI_MENU, (r) => r.fulfill({ path: process.env.AI_MENU_JS, contentType: 'application/javascript' }))
   await ctx.route(`${SB}/**`, async (route) => {
     const req = route.request(), url = new URL(req.url()), m = req.method()
@@ -47,6 +58,27 @@ async function setup(ctx, { admin }) {
       if (m === 'GET') return json(state.dnas)
       if (m === 'PATCH') { const d = state.dnas.find((x) => x.id === id); Object.assign(d, JSON.parse(req.postData())); return json(d) }
       if (m === 'DELETE') { state.dnas = state.dnas.filter((x) => x.id !== id); return route.fulfill({ status: 204 }) }
+    }
+    if (url.pathname === '/rest/v1/zikuk_articles') {
+      const id = url.searchParams.get('id')?.replace('eq.', '')
+      if (m === 'GET') return json(state.articles)
+      if (m === 'PATCH') { const a = state.articles.find((x) => x.id === id); Object.assign(a, JSON.parse(req.postData())); return json(a) }
+      if (m === 'DELETE') { state.articles = state.articles.filter((x) => x.id !== id); return route.fulfill({ status: 204 }) }
+    }
+    if (url.pathname === '/functions/v1/zikuk-article') {
+      const b = JSON.parse(req.postData())
+      state.articleCalls = [...(state.articleCalls ?? []), { ...b, token: !!req.headers()['x-user-token'] }]
+      await new Promise((r) => setTimeout(r, 400))
+      if (b.mode === 'synthesis') {
+        const a = art(6, { kind: 'synthesis', dna_id: null, dna_ids: state.dnas.map((d) => d.id), title_light: 'סינתזה', title_bold: 'חדשה', created_at: '2026-11-22T10:00:00Z' })
+        state.articles.unshift(a); return json({ article: a })
+      }
+      const existing = state.articles.find((x) => x.dna_id === b.dnaId)
+      if (existing && !b.rewrite) return json({ article: existing })
+      const n = Number(b.dnaId[7])
+      const a = { ...art(n), title_bold: b.rewrite ? 'נכתב מחדש' : `טענה ${n}`, created_at: '2026-11-21T10:00:00Z' }
+      state.articles = [a, ...state.articles.filter((x) => x.id !== a.id)]
+      return json({ article: a })
     }
     if (url.pathname === '/functions/v1/zikuk-upload') {
       const body = req.postDataBuffer()?.toString('latin1') ?? ''
@@ -325,12 +357,101 @@ try {
   check(true, 'sign out')
   await ctx.close()
 
+  // ---------- articles ----------
+  console.log('articles / visitor')
+  ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+  st = await setup(ctx, { admin: false })
+  page = await ctx.newPage()
+  const aerrors = []
+  page.on('pageerror', (e) => aerrors.push(String(e)))
+  await page.goto(BASE + '/')
+  await page.locator('.topnav .navlink', { hasText: 'כתבות' }).click()
+  await page.waitForSelector('[data-testid=articles]')
+  check(page.url().endsWith('/articles'), 'articles tab in the top nav')
+  check(await page.locator('.topnav .navlink.active', { hasText: 'כתבות' }).count() === 1, 'articles tab marked active')
+  check(await page.locator('[data-testid=article-card]').count() === 2, 'one card per written story')
+  check(await page.locator('[data-testid=pending-card]').count() === 2, 'genomes without a story show as pending')
+  check(await page.locator('[data-testid=method] .method-steps li').count() === 6, 'writing method explained in six steps')
+  check(await page.locator('[data-testid=metas] li').count() === 2, 'insights-from-insights index')
+  await page.waitForTimeout(900)
+  await page.screenshot({ path: 'tests/shots/articles.png', fullPage: true })
+
+  // write a pending story
+  await page.locator('[data-testid=pending-card] [data-testid=write-story]').first().click()
+  await page.waitForURL(/\/articles\/a/)
+  await page.waitForSelector('[data-testid=article-page]')
+  check(st.articleCalls?.some((c) => c.dnaId && !c.mode), 'write story sends dnaId')
+
+  // the hybrid story: chapters, insights, lineage, meta, next
+  await page.goto(`${BASE}/articles/${art(4).id}`)
+  await page.waitForSelector('[data-testid=article-page]')
+  check(await page.locator('[data-testid=chapter]').count() === 5, 'hybrid story has five chapters')
+  check(await page.locator('[data-testid=insight]').count() === 5, 'every chapter ends in an insight')
+  check((await page.locator('[data-testid=meta]').innerText()).includes('תובנה מתובנות 4'), 'meta insight shown')
+  check(await page.locator('.mag-converge li').count() === 5, 'chapter insights converge into the meta insight')
+  check(await page.locator('.mag-thumb').count() === 2, 'lineage chapter shows the parents')
+  check((await page.locator('.mag-steps p').first().innerText()) === 'צעד א', 'step numbers are not doubled')
+  const bgs = await page.locator('.mag-page').evaluateAll((els) => els.map((e) => getComputedStyle(e).backgroundColor))
+  check(bgs[0] === 'rgb(255, 255, 255)' && bgs[bgs.length - 1] === 'rgb(19, 19, 19)', `pages descend light to dark (${bgs[0]} .. ${bgs[bgs.length - 1]})`)
+  await page.waitForTimeout(800)
+  await page.screenshot({ path: 'tests/shots/article.png' })
+  await page.screenshot({ path: 'tests/shots/article-full.png', fullPage: true })
+  await page.click('[data-testid=next-article]')
+  await page.waitForURL((u) => !u.pathname.endsWith(art(4).id) && u.pathname.startsWith('/articles/'))
+  check(true, 'next article')
+
+  // synthesis
+  await page.goto(BASE + '/articles')
+  await page.click('[data-testid=synthesis-feature]')
+  await page.waitForSelector('[data-testid=article-page]')
+  check((await page.locator('[data-testid=article-title]').innerText()).includes('של הכול'), 'synthesis opens from the feature')
+  check(await page.locator('.mag-thumb').count() >= 1, 'synthesis chapters show the genomes they name')
+
+  // genome page: link to story, or write it
+  await page.goto(`${BASE}/dna/${mk(1).id}`)
+  await page.click('[data-testid=story-link]')
+  await page.waitForURL(`${BASE}/articles/${art(1).id}`)
+  check(true, 'genome links to its story')
+  await page.goto(`${BASE}/dna/${mk(3).id}`)
+  await page.click('[data-testid=story-write]')
+  await page.waitForURL(/\/articles\/a0000003/)
+  check(true, 'genome without a story writes it and opens it')
+  await page.goto(`${BASE}/articles/zzz`)
+  await page.waitForSelector('[data-testid=article-missing] h1')
+  check(true, 'missing article page')
+  check(aerrors.length === 0, `no page errors in articles (${aerrors.join(' | ')})`)
+  await ctx.close()
+
+  console.log('articles / admin')
+  ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+  st = await setup(ctx, { admin: true })
+  page = await ctx.newPage()
+  page.on('dialog', (d) => d.accept())
+  await page.goto(BASE + '/articles')
+  await page.waitForSelector('[data-testid=articles]')
+  await menuClick(page, 'סינתזה חדשה של כל התובנות')
+  await page.waitForFunction(() => document.body.innerText.includes('הסינתזה נכתבה'))
+  check(st.articleCalls?.some((c) => c.mode === 'synthesis' && c.token), 'admin writes a new synthesis')
+  await page.goto(`${BASE}/articles/${art(1).id}`)
+  await page.waitForSelector('[data-testid=article-page]')
+  await menuClick(page, 'כתיבה מחדש של הכתבה')
+  await page.waitForFunction(() => document.querySelector('[data-testid=article-title]')?.innerText.includes('נכתב מחדש'))
+  check(st.articleCalls?.some((c) => c.rewrite && c.token), 'admin rewrites a story')
+  await menuClick(page, 'הסתרת הכתבה')
+  await page.waitForSelector('.mag-kicker .badge')
+  check(st.calls.some((c) => c.m === 'PATCH' && c.path.includes('zikuk_articles') && JSON.parse(c.body).published === false), 'admin hides a story')
+  await menuClick(page, 'פרסום הכתבה')
+  await menuClick(page, 'מחיקת הכתבה')
+  await page.waitForURL(BASE + '/articles')
+  check(st.calls.some((c) => c.m === 'DELETE' && c.path.includes('zikuk_articles')), 'admin deletes a story')
+  await ctx.close()
+
   // ---------- mobile ----------
   console.log('mobile')
   ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
   st = await setup(ctx, { admin: true })
   page = await ctx.newPage()
-  for (const path of ['/', '/distill', '/lab', `/dna/${mk(1).id}`, `/dna/${mk(4).id}`]) {
+  for (const path of ['/', '/distill', '/lab', `/dna/${mk(1).id}`, `/dna/${mk(4).id}`, '/articles', `/articles/${art(4).id}`, `/articles/${art(5).id}`]) {
     await page.goto(BASE + path)
     await page.waitForTimeout(900)
     await noHScroll(page, `mobile ${path}`)
@@ -351,6 +472,9 @@ try {
   await page.waitForTimeout(800)
   await page.screenshot({ path: 'tests/shots/m-dna.png' })
   await page.screenshot({ path: 'tests/shots/m-dna-full.png', fullPage: true })
+  await page.goto(`${BASE}/articles/${art(4).id}`)
+  await page.waitForTimeout(900)
+  await page.screenshot({ path: 'tests/shots/m-article.png' })
   await noHScroll(page, 'mobile dna with admin bar')
   await ctx.close()
 
