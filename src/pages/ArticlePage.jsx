@@ -5,6 +5,7 @@ import { writeArticle, updateArticle, deleteArticle } from '../lib/supabase.js'
 import { mainImage, dnaCode, KIND_LABEL } from '../lib/genes.js'
 import { tones, sourcesOf, coverImage, namedIn } from '../lib/articles.js'
 import { useStore } from '../store.jsx'
+import A4Sheet from '../components/A4Sheet.jsx'
 
 const SIGNATURE = "אד' ענת דוד שטיבלמן"
 const num = (i) => String(i + 1).padStart(2, '0')
@@ -150,6 +151,7 @@ export default function ArticlePage({ id }) {
           <p className="mag-colophon">הגוונים יורדים מדף לדף מבהיר לכהה, עם קפיצה אחת באמצע, כמו המעבר מהרעיון אל מה שמתחתיו. התמונות בצבע מלא. טקסט: שיטת "מתובנה לתובנה" של זיקוק DNA.</p>
         </div>
       </section>
+      <A4Sheet article={article} dnas={dnas} />
     </article>
   )
 }

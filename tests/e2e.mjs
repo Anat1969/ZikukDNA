@@ -22,7 +22,7 @@ const mk = (n, extra = {}) => ({
 const art = (n, extra = {}) => ({
   id: `a000000${n}-0000-4000-8000-00000000000${n}`, created_at: `2026-11-1${n}T10:00:00Z`, updated_at: `2026-11-1${n}T10:00:00Z`, kind: 'story', dna_id: mk(n).id, dna_ids: [mk(n).id],
   title_light: `דימוי ${n}`, title_bold: `טענה ${n}`, lede: `פתיח ${n}`,
-  chapters: ['החומר הגולמי', 'מה מתחת', 'המתח', 'הקוד'].map((h, i) => ({ heading: h, body: `גוף ${n}.${i} גנום 1 גנום 2`, insight: `תובנה ${n}.${i}` })),
+  chapters: ['החומר הגולמי', 'מה מתחת', 'המתח', 'הקוד'].map((h, i) => ({ heading: h, body: `גוף ${n}.${i} גנום 1 גנום 2 ${'משפט אחד שממלא את הפרק בטקסט באורך אמיתי. '.repeat(11)}`, insight: `תובנה ${n}.${i} שנכתבת כטענה אחת שאפשר להתווכח איתה` })),
   meta_insight: `תובנה מתובנות ${n}`, meta_explain: `הסבר ${n}`, steps: ['1. צעד א', '2. צעד ב', 'צעד ג'], question: `שאלה ${n}`, published: true, ...extra,
 })
 const articleFixtures = () => [
@@ -396,6 +396,28 @@ try {
   await page.waitForTimeout(800)
   await page.screenshot({ path: 'tests/shots/article.png' })
   await page.screenshot({ path: 'tests/shots/article-full.png', fullPage: true })
+  // A4: the whole article fits one page, downloads as a one-page PDF and prints as one A4 page
+  await page.locator('[data-testid=a4]').scrollIntoViewIfNeeded()
+  await page.waitForTimeout(600)
+  const fitInfo = await page.$eval('[data-testid=a4-sheet]', (el) => { const c = el.querySelector('.a4-content'); const cols = el.querySelector('.a4-cols'); return { fits: c.scrollHeight <= c.clientHeight + 1 && cols.scrollWidth <= cols.clientWidth + 1 && el.querySelectorAll('.a4-ch').length === 5, fs: Number(el.dataset.fs) } })
+  check(fitInfo.fits && fitInfo.fs >= 6.25, `A4 sheet holds the whole article (font ${fitInfo.fs}pt)`)
+  await page.waitForFunction(() => { const i = document.querySelector('.a4-cover img'); return i && i.complete && i.naturalWidth > 0 }, null, { timeout: 10000 }).then(() => check(true, 'A4 cover image loads'), () => check(false, 'A4 cover image loads'))
+  await page.screenshot({ path: 'tests/shots/a4.png' })
+  const [pdfDl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.click('[data-testid=a4-pdf]')])
+  await pdfDl.saveAs('tests/shots/a4.pdf')
+  const pdfBuf = fs.readFileSync('tests/shots/a4.pdf').toString('latin1')
+  check(pdfBuf.startsWith('%PDF') && (pdfBuf.match(/\/Type\s*\/Page[^s]/g) ?? []).length === 1, 'PDF download is one A4 page')
+  check(/\/MediaBox\s*\[0 0 595\.\d+ 841\.\d+\]/.test(pdfBuf), 'PDF page is A4 size')
+  await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')))
+  const printed = (await page.pdf({ preferCSSPageSize: true, printBackground: true })).toString('latin1')
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')))
+  fs.writeFileSync('tests/shots/a4-print.pdf', Buffer.from(printed, 'latin1'))
+  const pages = Math.max(...[...printed.matchAll(/\/Count\s+(\d+)/g)].map((m) => Number(m[1])), (printed.match(/\/Type\s*\/Page[^s]/g) ?? []).length)
+  check(pages === 1, `print gives exactly one A4 page (${pages})`)
+  check(await page.locator('#a4-print').count() === 0, 'print copy removed after printing')
+  await page.evaluate(() => { window.print = () => { window.__printed = true } })
+  await page.click('[data-testid=a4-print]')
+  check(await page.evaluate(() => window.__printed === true), 'print button opens printing')
   await page.click('[data-testid=next-article]')
   await page.waitForURL((u) => !u.pathname.endsWith(art(4).id) && u.pathname.startsWith('/articles/'))
   check(true, 'next article')
